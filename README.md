@@ -598,10 +598,17 @@ Installs to both `.claude/skills/` and `.agents/skills/` in one step.
 
 ChatGPT natively supports [Agent Skills](https://agentskills.io). Available on Business, Enterprise, Edu, Teachers, and Healthcare plans.
 
-1. Download [`prompt-architect.skill`](https://github.com/ckelsoe/prompt-architect/releases/latest/download/prompt-architect.skill) (direct download, always latest version)
+1. Download [`prompt-architect.zip`](https://github.com/ckelsoe/prompt-architect/releases/latest/download/prompt-architect.zip) (direct download, always latest version)
 2. In ChatGPT, click your profile icon → **Skills**
 3. Click **New skill** → **Upload from your computer**
-4. Upload the `.skill` file
+4. Upload the `.zip` file — do not unzip it first
+
+ChatGPT scans uploaded skills before making them available; this one is plain
+Markdown with no scripts, so the scan is typically immediate.
+
+> Use the `.zip`, not the `.skill` file also attached to the release. They are
+> the same archive, but ChatGPT's uploader expects a `.zip` containing a single
+> top-level folder.
 
 ### Windsurf
 

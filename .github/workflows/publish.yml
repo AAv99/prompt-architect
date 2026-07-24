@@ -39,7 +39,7 @@ jobs:
       - name: Validate skill structure
         run: npm run validate
 
-      - name: Build .skill file
+      - name: Build skill archives (.zip + .skill)
         run: npm run build:skill
 
       - name: Publish to npm
@@ -76,8 +76,13 @@ jobs:
           npx @ckelsoe/prompt-architect
           ```
 
-          **ChatGPT / Gemini CLI / Agent Skills:**
-          Download `prompt-architect.skill` below and upload to your tool.
+          **ChatGPT:**
+          Download `prompt-architect.zip` below, then in ChatGPT go to
+          Profile → Skills → New skill → Upload from your computer.
+
+          **Gemini CLI / other Agent Skills tools:**
+          Download `prompt-architect.skill` below (same archive, different
+          extension) and upload to your tool.
 
           **Claude Code Plugin:**
           ```
@@ -90,7 +95,9 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           name: Release ${{ github.ref_name }}
-          files: prompt-architect.skill
+          files: |
+            prompt-architect.zip
+            prompt-architect.skill
           body_path: release_notes.md
           draft: false
           prerelease: false

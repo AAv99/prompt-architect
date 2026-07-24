@@ -1,11 +1,17 @@
 #!/usr/bin/env node
 
 /**
- * Build .skill file (zip archive of the skill directory)
+ * Build the distributable skill bundle archives.
  *
- * Creates prompt-architect.skill in the repo root — a zip of
- * skills/prompt-architect/ that can be uploaded to ChatGPT,
- * Gemini CLI, or any Agent Skills compatible tool.
+ * Produces two byte-identical zips of skills/prompt-architect/ in the repo root:
+ *
+ *   prompt-architect.zip    ChatGPT and anything following the Agent Skills
+ *                           spec's upload path. ChatGPT's uploader expects a
+ *                           .zip containing exactly one top-level folder; an
+ *                           unrecognized .skill extension can be filtered out
+ *                           by the file picker.
+ *   prompt-architect.skill  Gemini CLI and other tools that expect the .skill
+ *                           extension. Same archive, different name.
  *
  * Usage:
  *   node scripts/build-skill.js
@@ -16,45 +22,47 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const SKILL_DIR = path.join(__dirname, '..', 'skills', 'prompt-architect');
-const OUTPUT_FILE = path.join(__dirname, '..', 'prompt-architect.skill');
+const ZIP_FILE = path.join(__dirname, '..', 'prompt-architect.zip');
+const SKILL_FILE = path.join(__dirname, '..', 'prompt-architect.skill');
 
 if (!fs.existsSync(SKILL_DIR)) {
   console.error('Error: skills/prompt-architect/ not found');
   process.exit(1);
 }
 
-// Remove old .skill file if exists
-if (fs.existsSync(OUTPUT_FILE)) {
-  fs.unlinkSync(OUTPUT_FILE);
+// Remove old artifacts if present — zip appends to an existing archive.
+for (const file of [ZIP_FILE, SKILL_FILE]) {
+  if (fs.existsSync(file)) {
+    fs.unlinkSync(file);
+  }
 }
 
-// Use tar on all platforms (available in Git Bash on Windows, native on macOS/Linux)
-// Create a zip using Node.js built-in zlib won't work for directories,
-// so we use the platform's zip/tar command.
+// Build the .zip first, then copy it to .skill so both are the same bytes.
+// Zipping from skills/ keeps prompt-architect/ as the single top-level folder,
+// which the Agent Skills upload spec requires.
 try {
   const skillsRoot = path.join(__dirname, '..', 'skills');
 
   if (process.platform === 'win32') {
-    // PowerShell's Compress-Archive via child process
     execSync(
-      `powershell -NoProfile -Command "Compress-Archive -Path '${SKILL_DIR}\\*' -DestinationPath '${OUTPUT_FILE}.zip' -Force"`,
+      `powershell -NoProfile -Command "Compress-Archive -Path '${SKILL_DIR}' -DestinationPath '${ZIP_FILE}' -Force"`,
       { stdio: 'inherit' }
     );
-    // Rename .zip to .skill
-    fs.renameSync(OUTPUT_FILE + '.zip', OUTPUT_FILE);
   } else {
-    // Unix: use zip command from the skills/ directory
     execSync(
-      `cd "${skillsRoot}" && zip -r "${OUTPUT_FILE}" prompt-architect/`,
+      `cd "${skillsRoot}" && zip -r "${ZIP_FILE}" prompt-architect/`,
       { stdio: 'inherit' }
     );
   }
 
-  const stats = fs.statSync(OUTPUT_FILE);
-  const sizeKB = (stats.size / 1024).toFixed(1);
-  console.log(`\n  Built: prompt-architect.skill (${sizeKB} KB)\n`);
-  console.log('  Upload this file to:');
-  console.log('    - ChatGPT: Profile → Skills → New skill → Upload');
+  fs.copyFileSync(ZIP_FILE, SKILL_FILE);
+
+  const sizeKB = (fs.statSync(ZIP_FILE).size / 1024).toFixed(1);
+  console.log(`\n  Built: prompt-architect.zip (${sizeKB} KB)`);
+  console.log(`  Built: prompt-architect.skill (${sizeKB} KB, same archive)\n`);
+  console.log('  Upload:');
+  console.log('    - ChatGPT: Profile → Skills → New skill → Upload from your');
+  console.log('      computer → prompt-architect.zip');
   console.log('    - Gemini CLI: gemini skills install ./prompt-architect.skill');
   console.log('    - Any Agent Skills compatible tool\n');
 

@@ -5,6 +5,22 @@ All notable changes to the Prompt Architect Claude Code skill will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.1] - 2026-07-24
+
+Packaging fix for ChatGPT. No changes to skill content or framework behavior.
+
+### Added
+- **`prompt-architect.zip` release asset.** ChatGPT's skill uploader (Profile → Skills → New skill → Upload from your computer) expects a `.zip` containing exactly one top-level folder; the unrecognized `.skill` extension can be filtered out by the file picker. `npm run build:skill` now emits both `prompt-architect.zip` and `prompt-architect.skill` from the same archive — byte-identical, so nothing that already consumes the `.skill` file breaks — and the release workflow attaches both.
+
+### Changed
+- README and `adapters/README.md` point ChatGPT users at the `.zip` direct-download link; the Gemini CLI and generic Agent Skills paths still use `.skill`.
+- Release notes distinguish the ChatGPT (`.zip`) and Gemini CLI (`.skill`) download paths instead of naming only the `.skill` file.
+
+### Fixed
+- **Windows build produced a structurally invalid bundle.** The PowerShell branch of `build-skill.js` archived `skills/prompt-architect/*` rather than the folder itself, so a Windows-built archive had `SKILL.md`, `references/`, and `assets/` at the root with no top-level folder — which the Agent Skills upload spec rejects. Releases are built on Linux so no published artifact was affected, but a local Windows `npm run build:skill` produced an unusable file.
+
+---
+
 ## [3.5.0] - 2026-07-22
 
 Adds two research-backed frameworks, one composable technique, and a guardrail against unfalsifiable framework-selection rationale. Framework count is now 31.
