@@ -5,6 +5,167 @@ All notable changes to the Prompt Architect Claude Code skill will be documented
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.5.1] - 2026-07-24
+
+Packaging fix for ChatGPT. No changes to skill content or framework behavior.
+
+### Added
+- **`prompt-architect.zip` release asset.** ChatGPT's skill uploader (Profile → Skills → New skill → Upload from your computer) expects a `.zip` containing exactly one top-level folder; the unrecognized `.skill` extension can be filtered out by the file picker. `npm run build:skill` now emits both `prompt-architect.zip` and `prompt-architect.skill` from the same archive — byte-identical, so nothing that already consumes the `.skill` file breaks — and the release workflow attaches both.
+
+### Changed
+- README and `adapters/README.md` point ChatGPT users at the `.zip` direct-download link; the Gemini CLI and generic Agent Skills paths still use `.skill`.
+- Release notes distinguish the ChatGPT (`.zip`) and Gemini CLI (`.skill`) download paths instead of naming only the `.skill` file.
+
+### Fixed
+- **Windows build produced a structurally invalid bundle.** The PowerShell branch of `build-skill.js` archived `skills/prompt-architect/*` rather than the folder itself, so a Windows-built archive had `SKILL.md`, `references/`, and `assets/` at the root with no top-level folder — which the Agent Skills upload spec rejects. Releases are built on Linux so no published artifact was affected, but a local Windows `npm run build:skill` produced an unusable file.
+
+---
+
+## [3.5.0] - 2026-07-22
+
+Adds two research-backed frameworks, one composable technique, and a guardrail against unfalsifiable framework-selection rationale. Framework count is now 31.
+
+### Added
+- **Self-Consistency** (REASON) — sample the same reasoning prompt N times at non-zero temperature and take a plain majority vote over the final answers, aggregated *outside* the model. Cited to Wang et al., "Self-Consistency Improves Chain of Thought Reasoning in Language Models" (arXiv 2203.11171, ICLR 2023). The doc is explicit that this is *not* self-assessment (asking one model to judge its own paths) and that the emitted prompt is a single solve-prompt ending in a parseable `FINAL ANSWER:` line — the N-sample vote is an operational step the analysis section instructs, not something one pasted prompt can do. Absolute figures (56.5% → 74.4%, PaLM 540B / GSM8K) are labeled Table 1 body figures; the +17.9% is the abstract's relative delta.
+- **Chain-of-Verification** (CRITIQUE) — draft an answer, plan verification questions, answer them **independently of the draft**, then revise. That independence is the mechanism: it stops the verification from inheriting the draft's errors. Cited to Dhuliawala et al. (arXiv 2309.11495, Findings of ACL 2024). Distinct from RCoT, which reconstructs the question to catch missed *conditions*; CoVe fact-checks *claims*.
+- **Few-shot / in-context learning** as a **composable technique**, not a routed framework. It lives in `references/techniques/few-shot.md` and layers onto whichever framework was chosen — covering when examples help, how many (2–5), ordering and recency effects (Lu et al., ACL 2022), what examples actually teach (format and label space over per-example correctness — Min et al., EMNLP 2022), and calibration/bias balancing (Zhao et al., ICML 2021). Brown et al. (arXiv 2005.14165) is cited only for the term, never for a number. A new "Composable Techniques" section in `SKILL.md` and the adapter routes to it.
+
+### Changed
+- **Anti-false-narration guardrail.** Because section headers are stripped at emission, the framework choice is often invisible in the delivered prompt — so `SKILL.md` and the adapter now instruct: when two frameworks would produce the same prompt, say so, pick the simpler one, and do not manufacture a distinction the output won't show. A new drift-test invariant keeps the rule present in both files.
+- Framework count 29 → 31 across all advertised sites (`package.json` description and `claudeCode.frameworks`, `plugin.json`, `marketplace.json`, `README.md`, `SKILL.md`, adapter).
+
+---
+
+## [3.4.0] - 2026-07-22
+
+This release makes the **emission contract** explicit and consistent across the whole skill. When Prompt Architect delivers the final prompt, framework section headers (`CONTEXT:`, `ROLE:`, `BEFORE:`, …) are stripped — the user pastes a flat block of prose with no labels. Previously the framework docs and templates were written as if those headers would survive, so slots that were bare fragments ("meeting summary", "busy professionals") lost their meaning once the header was removed. Every framework now carries its own meaning in prose.
+
+### Added
+- **Optional `SOURCE MATERIAL` block on every template that operates on an artifact.** It names the artifact concretely (never a generic "content"), ties it to the task with one carrier sentence, and self-deletes for from-scratch tasks. Three frameworks are deliberately exempt because they have no pasted-material slot: **ReAct** (material arrives as live tool output), **Reverse Role** (everything is gathered through the interview), and **RISE-IX** (its samples land in the EXAMPLES slot).
+- **Emission-contract test guard.** `scripts/test.js` now fails if the load-bearing output-delivery rules (no section headers in the deliverable, paste-verbatim, "revised prompt is last element", the negation-survival and no-defaulting rules, and the worked example obeying them) diverge between `SKILL.md` and `adapters/system-prompt.md`. The prior drift checks compared only step headings and framework names, so prose drift — like the adapter shipping a BAB example *with* `BEFORE:/AFTER:/BRIDGE:` headers — passed silently.
+
+### Changed
+- **All 28 framework reference docs rewritten for the emission contract.** Each Overview now states how the framework emits; each component's guidance says whether its slot must be a complete sentence or ships inside a carrier sentence; and every Complete Example is shown in emitted form — with the `SOURCE MATERIAL` block, "the … above" references, and at least one from-scratch variant showing the block deleted. Origin/citation facts were preserved verbatim throughout.
+- **Elicitation questions in `SKILL.md` and the adapter now ask for the user's own material** ("Paste the Q3 revenue report here", "paste 2-3 actual samples whose style should be matched") instead of one-word checklists ("Context, audience, tone?"). A framework that operates on an artifact and never asks for it will otherwise invent one. The material-question exemptions above are documented inline.
+- **APE loses its collapsed single-sentence form.** The two inconsistent inline syntaxes it advertised were never implemented by the template and break when source material or multi-clause expectations are present; the doc now explains why. A complete APE prompt is still three sentences.
+- **`RISE` → `RISE-IE` in cross-references.** Docs that pointed to RISE as the input-transformation framework now use the skill's `RISE-IE` shorthand consistently. `RISEN` references are unchanged.
+
+### Fixed
+- **`RACE` examples no longer dangle.** Two examples referenced material "described below" when the `SOURCE MATERIAL` block places it above; they now say "above", matching the template's positioning rule.
+
+---
+
+## [3.3.1] - 2026-07-19
+
+### Fixed
+- **Publishing was broken before this release and would have failed for any version.** `.github/workflows/publish.yml` pinned Node 20 while running `npm install -g npm@latest`; once npm 12 shipped (requiring `^22.22.2 || ^24.15.0 || >=26`), that step failed with `EBADENGINE` before the publish ran. The workflow now uses Node 24. This is why 3.3.0 has no published artifact — its tag exists, but the release never completed.
+
+*All 3.3.0 changes below are included in this release.*
+
+---
+
+## [3.3.0] - 2026-07-19
+
+### Added
+- **Chain of Density is now the real method.** `chain-of-density.md` was rewritten around entity densification at *fixed* length, scoped to summarization, and cited to Adams et al., "From Sparse to Dense" (arXiv 2309.04269, NewSum @ EMNLP 2023). The previous content described generic progressive shortening — the opposite of the published technique, which holds length constant.
+- **New framework: Iterative Compression.** The general multi-pass shortening technique that used to be filed under Chain of Density is preserved as its own framework, with its own reference doc and template, and is no longer attributed to CoD. Framework count is now 29.
+- **Quality scoring is implemented.** `SKILL.md` and `adapters/system-prompt.md` now instruct the model to score prompts 1-10 on the five dimensions the README advertises — Clarity, Specificity, Context, Completeness, Structure — with rubric anchors defining the 1-3 / 4-6 / 7-8 / 9-10 bands. Previously this was advertised in three places and implemented in none, and the skill's dimension list disagreed with the README's.
+- **Framework combination guidance.** A "Combining Frameworks" section with concrete pairings (CO-STAR + Self-Refine, RISEN + ReAct, BROKE + Devil's Advocate) that finally routes to `hybrid_template.txt`, previously the only template with no path leading to it.
+- **Self-Consistency citation and a corrected template** in `chain-of-thought.md`, now citing Wang et al. (arXiv 2203.11171, ICLR 2023) and describing a real majority vote over independently sampled reasoning paths rather than asking the model to judge which of three different approaches it liked best.
+- **Origin lines for 10 previously uncited frameworks**: CO-STAR, Chain-of-Thought, RISEN, APE, RTF, CTF, RACE, BAB, plus corrected provenance for RISE and TIDD-EC.
+- **Acronym-collision disambiguation** for APE (vs. "Automatic Prompt Engineer," Zhou et al., arXiv 2211.01910) and RACE (vs. Dave Chaffey's 2010 Reach-Act-Convert-Engage marketing model).
+
+### Changed
+- **Provenance is now stated honestly per framework.** Frameworks with peer-reviewed backing cite it; community conventions say so plainly rather than leaving a silent gap. CO-STAR is credited to GovTech Singapore's Data Science & AI team — as Sheila Teo's own article does — rather than to Teo, who popularized it.
+- `rise.md`: "RISE-IE" and "RISE-IX" are now labeled as this skill's internal shorthand, not established terminology. RISE-IX is identified as our own composition; its three previously cited sources do not support it. `ctf.md` no longer propagates "RISE-IE" as if it were standard vocabulary.
+- `tidd-ec.md`: dropped the "originally documented alongside CO-STAR" claim, which implied a shared provenance that does not exist, and reassessed its three "authoritative sources" as one origin post, one same-organization republication, and one passing mention.
+- `SKILL.md` step numbering fixed — it had two sections numbered `### 4.` and now runs 1-7, matching the adapter.
+- `SKILL.md` template section reduced from a 30-line filename listing to one line; filenames are mechanically derivable.
+- Installer `--force` now does something: it is required to replace a **symlinked** install path, which previously was deleted without warning.
+
+### Fixed
+- **Installer no longer installs to Claude Code only.** Mode 5 (the `postinstall` path most users hit) and Mode 3 (`--yes`) now install to every detected agent, as documented. Mode 5 previously hard-skipped every agent but Claude and ignored `detect()` entirely.
+- **Windsurf adapter no longer duplicates itself.** A fresh `.windsurfrules` was written without marker comments, so the next run could not find or remove it and appended a second copy; the marker-stripping regex also lacked the `g` flag. Verified stable across repeated installs.
+- **`--project` is no longer ignored** for the Gemini and universal Agent Skills targets — only the Claude entry honored it.
+- **`engines.node` raised to `>=20.19.0`.** It declared `>=14.0.0`, but `@clack/prompts@1.1.0` is ESM-only, so `require()` of it throws `ERR_REQUIRE_ESM` below 20.19 — the headline `npx` experience failed across most of the declared range with a bare "Installation error". The CI matrix floor was raised to match.
+- **Step-Back statistic corrected**: MuSiQue is +7%, not +25% (a 3.5x overstatement); MMLU is +7% Physics / +11% Chemistry, not a "7-27% range."
+- **Socratic Prompting citation corrected**: single author Edward Y. Chang, IEEE CCWC 2023 — not "Chang et al." and not EMNLP/NAACL.
+- **Pre-Mortem attribution corrected**: the ~30% finding belongs to Mitchell, Russo & Pennington (1989), popularized by Gary Klein (HBR 2007); it measures identification of "reasons for future outcomes" against a might-happen framing, not "failure causes" against forward risk analysis. The unsupported "Brookings Institution" affiliation was removed.
+- **Skeleton-of-Thought quality claim qualified**: parity in roughly 60% of cases, with degradation on writing, math, and coding — previously "maintained or improved quality."
+- **Constitutional AI claim scoped**: the critique-before-revision effect is strongest for smaller models; the authors found no noticeable difference at 52B and kept critiques for transparency.
+- README no longer instructs users to create an `.npmrc` and a GitHub token for a registry the package is not published to. It is on public npm and needs no authentication.
+- README: duplicate `## Quick Start` heading renamed to `## Verifying Your Installation` (the table of contents anchor resolved to the wrong section), and the TOC completed.
+
+### Removed
+- `framework_analyzer.py` and `prompt_evaluator.py` (~50 KB). Nothing invoked them, they had no CLI, and `framework_analyzer.py` had already drifted — its header read "all 27" above a 28-entry dict. Their scoring dimensions were carried into the SKILL.md rubric before removal.
+- `.github/workflows/version-bump.yml`. It ran `npm version`, which updates only `package.json`, then immediately pushed the tag — landing a broken release tag on the remote before anyone could intervene.
+
+### Validation
+- `validate-skill.js` now derives framework and template checks from the filesystem instead of a hardcoded 7-entry subset, cross-checks `claudeCode.frameworks` against what is on disk, and **asserts every advertised framework count agrees with reality**. This is the check whose absence let "27" ship while 28 frameworks existed.
+- `validate-skill.js` now verifies **all five version sites** — `package.json`, `claudeCode.version`, `plugin.json`, `marketplace.json`, and `SKILL.md` frontmatter. It previously checked only `plugin.json`, and did not check SKILL.md's version at all, despite documentation claiming otherwise.
+- `test.js` gained a **drift guard** asserting `SKILL.md` and `adapters/system-prompt.md` keep identical step headings, sequential numbering, and the same framework set. These two files are hand-maintained copies and had already diverged.
+
+---
+
+## [3.2.2] - 2026-03-30
+
+### Added
+- Prominent Quick Start at the top of the README with the `npx @ckelsoe/prompt-architect` command
+- Codex CLI installation instructions via `$skill-installer install`
+- `/install-skill` documented as the primary Claude Code installation method, with the plugin marketplace commands retained for update support
+
+### Changed
+- README installation section consolidated: separate per-tool sections for Gemini CLI and for Cursor/Copilot/Windsurf/Codex were replaced by a single "Other Agents" section pointing at `~/.agents/skills/`
+- npm demoted to an alternative installation method
+
+### Fixed
+- `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json` versions brought back in sync with `package.json`; both had been left behind at 3.2.1
+
+---
+
+## [3.2.1] - 2026-03-24
+
+### Fixed
+- **Direct download link for ChatGPT**: the `.skill` link now points at `releases/latest/download/prompt-architect.skill` rather than the releases page, making it a one-click download
+- **Nothing after the revised prompt**: SKILL.md now states explicitly that no text may follow the closing backticks — the revised prompt must be the last element of the response. The example interaction was updated to comply.
+
+### Changed
+- `prompt-architect.skill` removed from git tracking and added to a new `.gitignore` alongside `node_modules/`. It is a build artifact produced by `npm run build:skill` and attached to releases by CI.
+
+---
+
+## [3.2.0] - 2026-03-24
+
+### Changed
+- **SKILL.md "Present Improvements" restructured for copy-pasteable output.** Responses now follow a fixed order: (A) analysis — framework selected, changes made, components applied; (B) a usage-instructions block explaining how to use the prompt in a new chat or the same chat; (C) the revised prompt last, in a fenced code block.
+- **The revised prompt is now clean flat text**: no framework section headers (`BEFORE:`, `BRIDGE:`, `CONTEXT:`), no gratuitous indentation, and no internal markdown unless the prompt genuinely requires it — so it can be copied verbatim with zero editing.
+- Example interaction rewritten to model the new output structure
+- Version synced across SKILL.md, `package.json`, `plugin.json`, and `marketplace.json`
+
+---
+
+## [3.1.1] - 2026-03-24
+
+### Fixed
+- **CI pipeline**: committed `package-lock.json` so `npm ci` works, and removed the unreliable `npm ci || npm install` fallback
+- Test matrix moved to Node 18/20/22; Node 14/16 dropped, as `@clack/prompts` requires a newer runtime
+
+---
+
+## [3.1.0] - 2026-03-24
+
+> The 3.x restructure described in the `[3.0.0]` entry below shipped across the 3.0.x line and landed in git under the `v3.1.0` tag. The items here are the parts of that work not already listed there.
+
+### Added
+- **`.skill` builder**: `scripts/build-skill.js` and `npm run build:skill` produce a ZIP for ChatGPT upload
+- **`bin` entry**: `npx @ckelsoe/prompt-architect` runs the installer directly
+
+### Changed
+- `package.json` `files` array now ships `skills/`, `.claude-plugin/`, and `MIGRATION.md`
+- Removed the obsolete adapters `for-cursor.mdc`, `for-github-copilot.md`, and `for-openai-codex-cli.md` — those tools read `SKILL.md` natively. Only `system-prompt.md` (universal) and `for-windsurf.md` remain.
+
+---
+
 ## [3.0.0] - 2026-03-24
 
 ### Breaking Changes
@@ -14,7 +175,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Claude Code Plugin System support**: `.claude-plugin/plugin.json` and `marketplace.json` — install via `/plugin marketplace add` and `/plugin install`
 - **Gemini CLI support**: Native Agent Skills compatibility. Install via `gemini skills install`
-- **Agent Skills standard compliance** (agentskills.io): Added `license`, `compatibility`, and `metadata` fields to SKILL.md frontmatter. Works with 30+ compatible agents including Cursor, Copilot, Kiro, Roo Code, Amp, OpenHands, and more
+- **Agent Skills standard compliance** (agentskills.io): Added `license`, `compatibility`, and `metadata` fields to SKILL.md frontmatter. Works with 30+ compatible agents including Cursor, Copilot, Kiro, Zoo Code, Amp, OpenHands, and more
 - **Interactive multi-agent installer**: Detects installed AI agents (Claude Code, Gemini CLI, Cursor, Copilot, Windsurf, Codex) and presents a selection UI using @clack/prompts
 - **Universal install path**: `~/.agents/skills/` for Agent Skills standard compatible tools
 - **CLI flags**: `--all`, `--claude`, `--gemini`, `--agents`, `--cursor`, `--copilot`, `--windsurf`, `--codex`, `--yes`
@@ -258,7 +419,7 @@ The framework selection system in SKILL.md was completely restructured:
 
 ## Links
 
-- [npm Package](https://www.npmjs.com/package/@ckelsoe/claude-skill-prompt-architect)
-- [GitHub Repository](https://github.com/ckelsoe/claude-skill-prompt-architect)
-- [Issue Tracker](https://github.com/ckelsoe/claude-skill-prompt-architect/issues)
-- [Contributing Guidelines](https://github.com/ckelsoe/claude-skill-prompt-architect/blob/main/README.md#contributing)
+- [npm Package](https://www.npmjs.com/package/@ckelsoe/prompt-architect)
+- [GitHub Repository](https://github.com/ckelsoe/prompt-architect)
+- [Issue Tracker](https://github.com/ckelsoe/prompt-architect/issues)
+- [Contributing Guidelines](https://github.com/ckelsoe/prompt-architect/blob/main/README.md#contributing)

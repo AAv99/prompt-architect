@@ -1,10 +1,10 @@
 # Prompt Architect
 
-Transform vague prompts into expert-level, structured prompts using 27 research-backed frameworks across 7 intent categories.
+Transform vague prompts into expert-level, structured prompts using 31 frameworks across 7 intent categories.
 
 Works with **Claude Code, ChatGPT, Gemini CLI, Cursor, GitHub Copilot, Windsurf, OpenAI Codex**, and [30+ Agent Skills compatible tools](https://agentskills.io).
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![npm](https://img.shields.io/npm/v/@ckelsoe/prompt-architect)](https://www.npmjs.com/package/@ckelsoe/prompt-architect) [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-compatible-blue)](https://agentskills.io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![npm](https://img.shields.io/npm/v/@ckelsoe/prompt-architect)](https://www.npmjs.com/package/@ckelsoe/prompt-architect) [![Agent Skills](https://img.shields.io/badge/Agent%20Skills-compatible-blue)](https://agentskills.io) [![Available on CodeGuilds](https://img.shields.io/badge/Available_on-CodeGuilds-6366f1)](https://codeguilds.dev/packages/prompt-architect)
 
 ## Quick Start
 
@@ -14,9 +14,9 @@ npx @ckelsoe/prompt-architect
 
 The interactive installer detects your AI agents (Claude Code, Gemini CLI, Cursor, Copilot, Codex, and more) and lets you choose where to install.
 
-> **Important:** Use `npx`, not `npm install`. The `npx` command runs the interactive multi-agent installer. Running `npm install` will only install to Claude Code silently via the postinstall hook.
+> **Tip:** Use `npx` rather than `npm install`. Both work — `npm install` runs the same installer via the postinstall hook and installs to every agent it detects — but only `npx` gives you the interactive menu to choose specific targets.
 
-> Requires `.npmrc` with `@ckelsoe:registry=https://npm.pkg.github.com` and a GitHub token with `read:packages` scope.
+> Published on the public npm registry. **No authentication required.**
 
 ---
 
@@ -28,11 +28,14 @@ The interactive installer detects your AI agents (Claude Code, Gemini CLI, Curso
 - [Supported Frameworks](#supported-frameworks)
 - [Quick Start](#quick-start)
 - [Installation](#installation)
+- [Verifying Your Installation](#verifying-your-installation)
+- [Updating](#updating)
 - [Usage](#usage)
 - [Framework Selection Guide](#framework-selection-guide)
 - [Project Structure](#project-structure)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
+- [Support](#support)
 - [License](#license)
 
 ---
@@ -57,7 +60,7 @@ Prompt Architect is an [Agent Skills](https://agentskills.io) compatible skill t
 
 ## Key Features
 
-### 27 Research-Backed Frameworks Across 7 Intent Categories
+### 31 Frameworks Across 7 Intent Categories
 
 | Framework | Best For | Complexity |
 |-----------|----------|------------|
@@ -81,14 +84,19 @@ Prompt Architect is an [Agent Skills](https://agentskills.io) compatible skill t
 | **Least-to-Most** | Compositional multi-hop problems (simplest first) | Medium |
 | **Plan-and-Solve (PS+)** | Zero-shot numerical/calculation reasoning | Low |
 | **Chain of Thought** | Reasoning, problem-solving | Medium |
-| **Chain of Density** | Iterative refinement, summarization | Medium |
+| **Self-Consistency** | Robust answers: sample many reasoning paths, majority-vote | Medium |
+| **Chain of Density** | Summarization at fixed length, maximum information density | Medium |
+| **Iterative Compression** | Shortening text toward a target length | Low |
 | **Self-Refine** | Iterative output quality improvement (any task) | Medium |
 | **CAI Critique-Revise** | Principle-based critique and revision (Anthropic) | Medium |
 | **Devil's Advocate** | Strongest opposing argument against a position | Low |
 | **Pre-Mortem** | Assume failure, identify specific causes | Low |
 | **RCoT** | Verify reasoning by reconstructing the question | Medium |
+| **Chain-of-Verification** | Fact-check a draft by verifying each claim independently | Medium |
 | **RPEF** | Recover/reconstruct a prompt from an existing output | Low |
 | **Reverse Role Prompting** | AI interviews you before executing | Low |
+
+**Composable technique** (layered onto any framework, not one of the 31): **Few-shot / in-context examples** — the discipline of adding well-chosen, well-ordered worked examples to a prompt.
 
 ### Quality Scoring System
 
@@ -457,7 +465,7 @@ RESPONSE FORMAT:
 **Best for:** Identifying specific failure causes before they happen
 
 **Approach:** Assume the project has already failed → describe the failure → work backwards to specific causes with warning signs
-**Research:** Gary Klein's prospective hindsight — ~30% improvement over forward risk analysis
+**Research:** Mitchell, Russo & Pennington (1989), popularized by Gary Klein (HBR 2007) — prospective hindsight improves identification of reasons for future outcomes by ~30%; LLM application is practitioner-level, with no dedicated AI paper
 
 **Example Use Cases:** Project kickoffs, product launches, technical migrations, high-stakes strategic decisions
 
@@ -574,7 +582,7 @@ Choose the method that matches your AI tool:
 $skill-installer install https://github.com/ckelsoe/prompt-architect/tree/main/skills/prompt-architect
 ```
 
-### Other Agents (Gemini, Cursor, Copilot, Cline, Roo Code, etc.)
+### Other Agents (Gemini, Cursor, Copilot, Cline, Zoo Code, etc.)
 
 Copy `skills/prompt-architect/` from this repo to `~/.agents/skills/prompt-architect/`
 
@@ -590,10 +598,17 @@ Installs to both `.claude/skills/` and `.agents/skills/` in one step.
 
 ChatGPT natively supports [Agent Skills](https://agentskills.io). Available on Business, Enterprise, Edu, Teachers, and Healthcare plans.
 
-1. Download [`prompt-architect.skill`](https://github.com/ckelsoe/prompt-architect/releases/latest/download/prompt-architect.skill) (direct download, always latest version)
+1. Download [`prompt-architect.zip`](https://github.com/ckelsoe/prompt-architect/releases/latest/download/prompt-architect.zip) (direct download, always latest version)
 2. In ChatGPT, click your profile icon → **Skills**
 3. Click **New skill** → **Upload from your computer**
-4. Upload the `.skill` file
+4. Upload the `.zip` file — do not unzip it first
+
+ChatGPT scans uploaded skills before making them available; this one is plain
+Markdown with no scripts, so the scan is typically immediate.
+
+> Use the `.zip`, not the `.skill` file also attached to the release. They are
+> the same archive, but ChatGPT's uploader expects a `.zip` containing a single
+> top-level folder.
 
 ### Windsurf
 
@@ -610,7 +625,7 @@ See [`adapters/README.md`](adapters/README.md) for detailed instructions for eac
 
 ---
 
-## Quick Start
+## Verifying Your Installation
 
 After installing, test with:
 
@@ -837,11 +852,7 @@ prompt-architect/
 ├── LICENSE                            # MIT License
 │
 └── prompt-architect/                  # The skill
-    ├── SKILL.md                       # Core skill instructions (5 KB)
-    │
-    ├── scripts/                       # Analysis Utilities
-    │   ├── framework_analyzer.py      # Framework recommendation logic
-    │   └── prompt_evaluator.py        # Quality scoring system
+    ├── SKILL.md                       # Core skill instructions
     │
     ├── references/                    # Framework Documentation
     │   └── frameworks/                # Loaded on-demand
@@ -908,9 +919,8 @@ prompt-architect/
 
 **Core Components:**
 - **SKILL.md** - Main skill logic and instructions (intent-based selection system)
-- **27 Framework Docs** - Complete references with examples
-- **29 Templates** - Ready-to-use structures (27 frameworks + hybrid + chain variants)
-- **2 Python Scripts** - Analysis and scoring utilities
+- **Framework Reference Docs** - 30 files covering all 31 frameworks, with examples (RISE documents two variants)
+- **Templates** - 30 ready-to-use structures: one per framework, plus `hybrid_template.txt` for combinations
 
 ---
 

@@ -15,12 +15,16 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: '20'
+          # Must stay on a line that current npm supports: npm@latest (12.x)
+          # requires ^22.22.2 || ^24.15.0 || >=26. Pinning '20' here silently
+          # broke publishing when npm 12 shipped — the upgrade step below fails
+          # with EBADENGINE before anything is published.
+          node-version: '24'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Upgrade npm for OIDC Trusted Publishing
@@ -35,35 +39,65 @@ jobs:
       - name: Validate skill structure
         run: npm run validate
 
-      - name: Build .skill file
+      - name: Build skill archives (.zip + .skill)
         run: npm run build:skill
 
       - name: Publish to npm
         run: npm publish --provenance --access public
 
+      - name: Generate release notes from CHANGELOG
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          # Extract this version's section body: everything between its
+          # '## [x.y.z]' header and the next '## [' header, dropping the header
+          # line itself, '---' rules, and leading blank lines.
+          awk -v ver="$VERSION" '
+            /^## \[/ { if (p) exit; if (index($0, "## [" ver "]") == 1) { p=1; next } }
+            p {
+              if ($0 == "---") next
+              if (!seen && $0 ~ /^[[:space:]]*$/) next
+              seen=1; print
+            }
+          ' CHANGELOG.md > release_notes.md
+          # Guard: never publish an empty body. A missing section means the tag
+          # was cut without a matching CHANGELOG entry — fail so it gets fixed.
+          if ! grep -q '[^[:space:]]' release_notes.md; then
+            echo "::error::No CHANGELOG.md section found for version $VERSION. Add a '## [$VERSION]' entry before tagging."
+            exit 1
+          fi
+          # Append install instructions below the changelog section.
+          cat >> release_notes.md <<'EOF'
+
+          ## Installation
+
+          **npm (interactive multi-agent installer):**
+          ```bash
+          npm install -g @ckelsoe/prompt-architect
+          npx @ckelsoe/prompt-architect
+          ```
+
+          **ChatGPT:**
+          Download `prompt-architect.zip` below, then in ChatGPT go to
+          Profile → Skills → New skill → Upload from your computer.
+
+          **Gemini CLI / other Agent Skills tools:**
+          Download `prompt-architect.skill` below (same archive, different
+          extension) and upload to your tool.
+
+          **Claude Code Plugin:**
+          ```
+          /plugin marketplace add ckelsoe/prompt-architect
+          /plugin install prompt-architect@prompt-architect-marketplace
+          ```
+          EOF
+
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v3
         with:
           name: Release ${{ github.ref_name }}
-          files: prompt-architect.skill
-          body: |
-            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-
-            ## Installation
-
-            **npm (interactive multi-agent installer):**
-            ```bash
-            npm install -g @ckelsoe/prompt-architect
-            npx @ckelsoe/prompt-architect
-            ```
-
-            **ChatGPT / Gemini CLI / Agent Skills:**
-            Download `prompt-architect.skill` below and upload to your tool.
-
-            **Claude Code Plugin:**
-            ```
-            /plugin marketplace add ckelsoe/prompt-architect
-            /plugin install prompt-architect@prompt-architect-marketplace
-            ```
+          files: |
+            prompt-architect.zip
+            prompt-architect.skill
+          body_path: release_notes.md
           draft: false
           prerelease: false

@@ -13,13 +13,13 @@ These tools read `SKILL.md` natively. No adapter needed — just install to thei
 | Tool | Install method |
 |------|---------------|
 | **Claude Code** | `npm install -g @ckelsoe/prompt-architect` or `/plugin marketplace add ckelsoe/prompt-architect` |
-| **ChatGPT** | Download [`prompt-architect.skill`](https://github.com/ckelsoe/prompt-architect/releases/latest) → Profile → Skills → Upload |
+| **ChatGPT** | Download [`prompt-architect.zip`](https://github.com/ckelsoe/prompt-architect/releases/latest/download/prompt-architect.zip) → Profile → Skills → New skill → Upload from your computer |
 | **Gemini CLI** | `gemini skills install https://github.com/ckelsoe/prompt-architect.git` |
 | **Cursor** | Copy `skills/prompt-architect/` to `.agents/skills/` or `.cursor/skills/` in your project |
 | **GitHub Copilot** | Copy `skills/prompt-architect/` to `.github/skills/` or `~/.copilot/skills/` |
 | **OpenAI Codex** | Copy `skills/prompt-architect/` to `.agents/skills/` in your project |
 | **VS Code** | Copy `skills/prompt-architect/` to `.agents/skills/` in your project |
-| **Roo Code** | Copy `skills/prompt-architect/` to `.agents/skills/` or `~/.agents/skills/` |
+| **Zoo Code** | Copy `skills/prompt-architect/` to `.agents/skills/` or `~/.agents/skills/` |
 | **Kiro, Amp, Junie, Goose, OpenHands, etc.** | Copy to `~/.agents/skills/` (universal path) |
 
 Or use the interactive installer to auto-detect and install:

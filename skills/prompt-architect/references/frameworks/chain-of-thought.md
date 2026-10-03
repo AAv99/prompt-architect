@@ -4,6 +4,10 @@
 
 Chain of Thought is a prompting technique that encourages step-by-step reasoning and makes the thinking process explicit. Instead of jumping to answers, it guides Claude to break down complex problems, show intermediate steps, and verify logic along the way.
 
+When prompt-architect emits a Chain-of-Thought prompt, its framework section headers — `PROBLEM / QUESTION`, `SOURCE MATERIAL`, `REASONING INSTRUCTION` — are stripped and the model receives a flat block. The reasoning instruction is written as a complete sentence so it survives on its own, while the numbered step labels the prompt requests (`Step 1:`, `STEP 1 - REQUIREMENTS:`) are literal labels inside the reasoning protocol and stay in place. An optional `SOURCE MATERIAL` block holds the code, data, or document being reasoned over and is deleted when the problem is self-contained.
+
+**Research basis:** "Chain-of-Thought Prompting Elicits Reasoning in Large Language Models" (Wei et al., Google Research, arXiv 2201.11903, NeurIPS 2022). Prompting PaLM 540B with eight chain-of-thought exemplars raised GSM8K accuracy from 17.9% with standard prompting to 56.9%, beating the prior fine-tuned state of the art of 55% (GPT-3 plus a verifier, Cobbe et al. 2021).
+
 ## Core Concept
 
 CoT works by:
@@ -166,6 +170,16 @@ Poor:
 
 ## Complete Examples
 
+Every example below is shown in emitted form. Two kinds of label appear, and they behave
+differently at emission. The framework's own section headers — `SOURCE MATERIAL:`,
+`PROBLEM / QUESTION:`, `REASONING INSTRUCTION:` — are scaffolding and are stripped, so each
+is written so its instruction still reads once the header is gone. The numbered
+reasoning-step labels the prompt asks for (`Step 1:`, `STEP 1 - REQUIREMENTS:`) are literal
+labels inside the reasoning protocol, not section headers, and they survive into the emitted
+prompt exactly as written — they are what the model is being told to produce. Where the
+reasoning runs over an existing artifact, the `SOURCE MATERIAL` block carries it; where the
+task starts from a blank page, that block is deleted.
+
 ### Example 1: Debugging
 
 **Without CoT:**
@@ -174,14 +188,19 @@ Why isn't this code working?
 [code snippet]
 ```
 
-**With CoT:**
+**With CoT** (source material supplied):
 ```
-Debug this code by thinking through it step-by-step:
+SOURCE MATERIAL:
+[Paste the code you want debugged here]
+The reasoning that follows must work from the material above, not from
+assumptions about it.
 
-[code snippet]
+PROBLEM / QUESTION:
+Debug the code above by thinking through it step-by-step.
 
+REASONING INSTRUCTION:
 Use this process:
-1. Read the code and state what it's supposed to do
+1. Read the code and state what it is supposed to do
 2. Identify the input and expected output
 3. Trace through execution line by line
 4. Note any suspicious patterns or red flags
@@ -199,7 +218,9 @@ Use this process:
 Design a URL shortener.
 ```
 
-**With CoT:**
+**With CoT** (no source material — the design is worked out from scratch, so no
+`SOURCE MATERIAL` block is needed; the `STEP N -` labels are literal protocol labels and
+survive header stripping):
 ```
 Design a URL shortener by working through these steps:
 
@@ -242,7 +263,9 @@ For each step, explain your reasoning.
 Should we use MongoDB or PostgreSQL?
 ```
 
-**With CoT:**
+**With CoT** (no source material — the decision is reasoned out from scratch, so no
+`SOURCE MATERIAL` block is needed; the `STEP N -` labels are literal protocol labels and
+survive header stripping):
 ```
 Decide between MongoDB and PostgreSQL by reasoning through:
 
@@ -304,7 +327,7 @@ STEPS:
 ...
 ```
 
-### CoT + RISE
+### CoT + RISE-IE
 ```
 ROLE: [Analyst]
 INPUT: [Data]
@@ -319,24 +342,27 @@ STEPS:
 ### Self-Consistency
 Generate multiple reasoning paths and choose the most common answer:
 
+**Research basis:** "Self-Consistency Improves Chain of Thought Reasoning in Language Models" (Wang et al., arXiv 2203.11171, ICLR 2023). Sample a diverse set of reasoning paths rather than greedy-decoding one, then "marginalize out the reasoning paths and aggregate by choosing the most consistent answer in the final answer set." On PaLM 540B / GSM8K, a majority vote over 40 sampled paths reached 74.4% versus 56.5% for greedy CoT decoding (+17.9 points); an unweighted majority vote matched or beat every weighted aggregation the authors tested.
+
+The mechanism is **sampling the same prompt repeatedly and taking a majority vote** — not asking the model to try different methods and then judge which it likes best. Self-assessment is a different (and weaker) technique; the model is not a reliable judge of its own reasoning.
+
 ```
-Solve this problem using three different approaches:
+Solve this problem. Show your step-by-step reasoning, then state your final
+answer on its own line as:
 
-APPROACH 1:
-[Method 1 with step-by-step reasoning]
+FINAL ANSWER: [answer]
 
-APPROACH 2:
-[Method 2 with step-by-step reasoning]
-
-APPROACH 3:
-[Method 3 with step-by-step reasoning]
-
-COMPARISON:
-Which approach is most reliable and why?
-
-FINAL ANSWER:
-Based on the most consistent result.
+[Problem]
 ```
+
+Run this **same prompt N times at non-zero temperature** (the paper samples 40; 5-10 is usually enough in practice, and temperature ~0.7 is a reasonable default). Then aggregate outside the model:
+
+1. Extract the `FINAL ANSWER:` value from each of the N samples
+2. Count how often each distinct answer appears
+3. Return the most frequent answer — a plain, unweighted majority vote
+4. Treat a near-tie as a signal of genuine uncertainty, not as a reason to ask the model to break the tie
+
+Do **not** ask the model to compare its own paths and pick the best one. The diversity of independently sampled reasoning is what produces the gain; collapsing it into a single self-judgment discards exactly the signal the method depends on.
 
 ### Uncertainty Quantification
 ```

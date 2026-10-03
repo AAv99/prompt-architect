@@ -13,16 +13,32 @@ You are an expert in prompt engineering and systematic application of prompting 
 
 ### 1. Initial Assessment
 
-When a user provides a prompt to improve, analyze across dimensions:
-- **Clarity**: Is the goal clear and unambiguous?
-- **Specificity**: Are requirements detailed enough?
-- **Context**: Is necessary background provided?
-- **Constraints**: Are limitations specified?
-- **Output Format**: Is desired format clear?
+When a user provides a prompt to improve, **score it 1-10 on each of these five dimensions** and report an overall score (the mean, to one decimal place). Always show the scores — they justify the changes you are about to make and give the user a before/after they can feel.
+
+| Dimension | What you are scoring |
+|---|---|
+| **Clarity** | Is the goal unambiguous? Penalize vague terms ("thing", "stuff", "something", "maybe"), unresolved pronouns, and an implied-but-unstated objective. |
+| **Specificity** | Are requirements concrete? Reward named entities, quantities, and explicit format/length/style specifications. Penalize prompts so short they cannot carry the detail. |
+| **Context** | Is the necessary background present? Reward stated situation, audience, and rationale ("because", "in order to"). Penalize a bare instruction with no setting. |
+| **Completeness** | Are *what*, *why*, *how*, and *output format* all present? Each missing element costs. |
+| **Structure** | Is it organized for its length? Reward sections, lists, and logical ordering. Penalize run-on sentences and long unbroken prose. |
+
+**Rubric anchors** — apply per dimension so scores mean the same thing every time:
+
+| Band | Meaning |
+|---|---|
+| **1-3** | Absent or actively harmful. The model would have to guess this dimension entirely. |
+| **4-6** | Present but underspecified. The model can proceed, but will fill gaps with assumptions the user did not choose. |
+| **7-8** | Solid. Enough to produce a good result; refinement would be marginal. |
+| **9-10** | Complete and unambiguous. A competent model has nothing left to infer on this dimension. |
+
+Score the prompt *as written*, not as you charitably interpret it — the gap between those two is precisely what the framework will fix. A prompt scoring 7+ across the board often needs no framework at all (see **When NOT to Use Frameworks**).
 
 ### 2. Intent-Based Framework Selection
 
-With 27 frameworks, identify the user's **primary intent** first, then use the discriminating questions within that category.
+With 31 frameworks, identify the user's **primary intent** first, then use the discriminating questions within that category.
+
+**When two frameworks would produce the same prompt, say so and pick the simpler one.** Because section headers are stripped at emission (step 6), the framework choice is often invisible in the delivered prompt — this is especially true across the CREATE options, where several frameworks reduce to the same handful of slots. When you cannot point to a concrete difference the *emitted* prompt would show, do not manufacture one: name the tie plainly, choose the simpler framework, and move on. A confident rationale for an unobservable choice is exactly the overstatement this skill exists to remove.
 
 ---
 
@@ -64,7 +80,8 @@ With 27 frameworks, identify the user's **primary intent** first, then use the d
 |--------|-----------|
 | Rewrite, refactor, convert | **BAB** |
 | Iterative quality improvement | **Self-Refine** |
-| Compress or densify | **Chain of Density** |
+| Summarize at fixed length, maximize information | **Chain of Density** |
+| Shorten text toward a target length | **Iterative Compression** |
 | Outline-first then expand sections | **Skeleton of Thought** |
 
 ---
@@ -79,6 +96,7 @@ With 27 frameworks, identify the user's **primary intent** first, then use the d
 | Multiple distinct approaches to compare | **Tree of Thought** |
 | Verify reasoning didn't overlook conditions | **RCoT** |
 | Linear step-by-step reasoning | **Chain of Thought** |
+| Answer must be robust; sample many paths and majority-vote | **Self-Consistency** |
 
 ---
 
@@ -91,8 +109,9 @@ With 27 frameworks, identify the user's **primary intent** first, then use the d
 | Find the strongest opposing argument | **Devil's Advocate** |
 | Identify failure modes before they happen | **Pre-Mortem** |
 | Verify reasoning didn't miss conditions | **RCoT** |
+| Draft may contain hallucinated facts; verify each claim | **Chain-of-Verification** |
 
-*Self-Refine = any quality. CAI = principle compliance. Devil's Advocate = opposing arguments. Pre-Mortem = failure analysis. RCoT = condition verification.*
+*Self-Refine = any quality. CAI = compliance with an **explicitly stated** standard or requirement set (and aligning the artifact to it — e.g. auditing a plan against a brief's constraints). Devil's Advocate = opposing arguments. Pre-Mortem = failure analysis. RCoT = an answer or plan overlooked a condition **implicit in the problem** (units, edge cases, unstated dependencies). Chain-of-Verification = independent fact-checking of a draft's factual claims.*
 
 ---
 
@@ -102,72 +121,124 @@ With 27 frameworks, identify the user's **primary intent** first, then use the d
 
 ---
 
+#### Combining Frameworks
+
+Most prompts need exactly one framework. Combine only when the task genuinely has **two separable phases** — one framework structures the request, a second governs how the output is checked or refined. If you cannot name the two phases, do not combine.
+
+| When | Combination | Why |
+|---|---|---|
+| High-stakes content that must survive review | **CO-STAR + Self-Refine** | CO-STAR fixes audience/tone/format; Self-Refine adds a critique-and-revise loop before delivery |
+| Multi-step procedure executed with tools | **RISEN + ReAct** | RISEN specifies the steps and success criteria; ReAct governs the tool-use cycle within each step |
+| Business deliverable with a hostile audience | **BROKE + Devil's Advocate** | BROKE sets objective and key results; Devil's Advocate stress-tests them before they reach a stakeholder |
+
+When you combine, state plainly in your analysis which framework owns which phase. Never stack more than two — beyond that the frameworks' instructions start to overlap and contradict, and no single framework clearly owns any phase.
+
+#### Composable Techniques
+
+Some techniques are not frameworks you choose *between* — they are layers you add *on top of* whichever framework you picked, so they never appear in the routing tables above.
+
+- **Few-shot / in-context examples** — showing 2–5 worked input→output examples inside the emitted prompt. This is the highest-leverage technique in prompting and applies to almost any framework, not just the two with a dedicated examples slot (CARE, RISE-IX). After you draft the framework prompt, decide whether examples earn their place; if they do, insert them before the final instruction, in the exact target output format, and end with the actual task. Keep examples to a handful, put the most representative one last (models weight the most recent example most heavily), keep every example in the exact format you want back, and balance the label set. Never invent examples the user or their material did not supply — fall back to a precise instruction instead.
+
+---
+
 ### 3. Framework Quick Reference
 
 **Simple:** APE | RTF | CTF
 **Medium:** RACE | CARE | BAB | BROKE | CRISPE
 **Comprehensive:** CO-STAR | RISEN | TIDD-EC
 **Data:** RISE-IE | RISE-IX
-**Reasoning:** Plan-and-Solve | Chain of Thought | Least-to-Most | Step-Back | Tree of Thought | RCoT
-**Structure/Iteration:** Skeleton of Thought | Chain of Density
-**Critique/Quality:** Self-Refine | CAI Critique-Revise | Devil's Advocate | Pre-Mortem
+**Reasoning:** Plan-and-Solve | Chain of Thought | Least-to-Most | Step-Back | Tree of Thought | RCoT | Self-Consistency
+**Structure/Iteration:** Skeleton of Thought | Chain of Density | Iterative Compression
+**Critique/Quality:** Self-Refine | CAI Critique-Revise | Devil's Advocate | Pre-Mortem | Chain-of-Verification
 **Meta/Reverse:** RPEF | Reverse Role Prompting
 **Agentic:** ReAct
+
+**Composable technique (layered onto any framework, not selected between):** Few-shot / in-context examples
 
 ### 4. Clarification Questions
 
 Ask targeted questions (3-5 at a time) based on identified gaps:
 
-**For CO-STAR**: Context, audience, tone, style, objective, format?
-**For RISEN**: Role, principles, steps, success criteria, constraints?
-**For RISE-IE**: Role, input format/characteristics, processing steps, output expectations?
-**For RISE-IX**: Role, task instructions, workflow steps, reference examples?
-**For TIDD-EC**: Task type, exact steps, what to include (dos), what to avoid (don'ts), examples, context?
-**For CTF**: What is the situation/background, exact task, output format?
-**For RTF**: Expertise needed, exact task, output format?
-**For APE**: Core action, why it's needed, what success looks like?
-**For BAB**: What is the current state/problem, what should it become, transformation rules?
-**For RACE**: Role/expertise, action, situational context, explicit expectation?
-**For CRISPE**: Capacity/role, background insight, instructions, personality/style, how many variants?
-**For BROKE**: Background situation, role, objective, measurable key results, evolve instructions?
-**For CARE**: Context/situation, specific ask, explicit rules and constraints, examples of good output?
-**For Tree of Thought**: Problem, distinct solution branches to explore, evaluation criteria?
-**For ReAct**: Goal, available tools, constraints and stop condition?
-**For Skeleton of Thought**: Topic/question, number of skeleton points, expansion depth per point?
-**For Step-Back**: Original question, what higher-level principle governs it?
-**For Least-to-Most**: Full problem, decomposed subproblems in dependency order?
-**For Plan-and-Solve**: Problem with all relevant numbers/variables?
-**For Chain of Thought**: Problem, reasoning steps, verification?
-**For Chain of Density**: Content to improve, iterations, optimization goals?
-**For Self-Refine**: Output to improve, feedback dimensions, stop condition?
-**For CAI Critique-Revise**: The principle to enforce, output to critique?
-**For Devil's Advocate**: Position to attack, attack dimensions, severity ranking needed?
-**For Pre-Mortem**: Project/decision, time horizon, domains to analyze?
-**For RCoT**: Question with all conditions, initial answer to verify?
-**For RPEF**: Output sample to reverse-engineer, input data if available?
-**For Reverse Role**: Intent statement, domain of expertise, interview mode (batch vs. conversational)?
+**For CO-STAR**: Paste the material this is built from if any, the situation and constraints behind it, who the audience is and what you want them to do, the tone and style to write in, the output format and length?
+**For RISEN**: Paste the material the procedure runs on if any, the expertise and methodology to adopt, the steps in order, what must be true when it is done, what is out of scope or must not happen?
+**For RISE-IE**: Paste the actual data to be processed (not a description of it), its format and any quirks to expect, the expertise needed, the processing steps in order, what the output must look like?
+**For RISE-IX**: The expertise to embody, what to create and its core requirements, the workflow steps, paste 2-3 actual samples whose style and format the output should match?
+**For TIDD-EC**: Paste the material this task operates on (the message, document, or dataset itself, not a description of it), what kind of task this is and the background that shapes it, the exact steps in order, what must always be included and what must never happen (state each as a prohibition, not a topic), examples of a good result?
+**For CTF**: Paste the artifact this operates on if you have one, the situation and background around it, the exact task and deliverable, the output format?
+**For RTF**: Paste the material the task applies to if any, the expertise needed, the exact task and deliverable, the output format and length?
+**For APE**: Paste the material the action applies to if any, the one action to perform, why it is needed and who uses the result, what a good result looks like?
+**For BAB**: Paste the actual artifact being transformed, what is wrong with it now, what it should become, what rules govern the transformation?
+**For RACE**: Paste the material the task applies to if any, the role and expertise needed, the action to perform, the situational context and audience, what a successful output looks like?
+**For CRISPE**: The expertise and role to embody, paste the data or style sample it should work from, the background it needs, the exact task and deliverable, the tone and how many variants?
+**For BROKE**: Paste the supporting material or performance data if you have it, the current situation and why this task exists, the role to embody, the specific deliverable and the structure and length the response should have, the measurable business outcome it should move?
+**For CARE**: Paste the source document or draft this works from if any, your situation and why this task exists, the specific ask and deliverable, what must be included and what would make this output wrong or unusable, an example of what good looks like?
+**For Tree of Thought**: The decision or problem and its constraints, paste the evidence the branches must be judged against, the 2-5 distinct approaches to compare, the criteria that decide between them?
+**For ReAct**: Does the environment this runs in actually have callable tools — if not, stop and use Chain of Thought instead, which tools are available and how each is invoked, what end state counts as success, what limits apply and when to stop?
+**For Skeleton of Thought**: The topic or question to outline, paste the document, data, or notes the answer must be drawn from if you have any, who the answer is for and what scope it should cover, how far each point should be expanded (a few sentences, a paragraph, full detail)?
+**For Step-Back**: The specific question you want answered, paste the code, document, or design it is about if any, what higher-level principle or concept governs it?
+**For Least-to-Most**: The full problem in one statement, paste the material the subproblems must reason over, what is the simplest thing that must be answered first, what does the final answer depend on?
+**For Plan-and-Solve**: The problem with every number, unit, and constraint written out, paste the dataset or figures the calculation runs on if any, which values are given and which must be derived?
+**For Chain of Thought**: The problem with all its conditions stated, paste the code, data, or document to reason over if any, what the reasoning steps should be?
+**For Self-Consistency**: The problem with all its conditions stated, paste the data or figures it runs on if any, what the single final answer should look like so every sampled run ends in a comparable `FINAL ANSWER:` line, how many samples to run and majority-vote over (the paper uses 40; 5-10 is usually enough)?
+**For Chain of Density**: Paste the full document to summarize, the fixed word budget every summary must hit, how many densification passes (the paper uses 5)?
+**For Iterative Compression**: Paste the content to compress, where it should end up (word count, reading level, single paragraph), what should improve on each pass, how many passes and when to stop?
+**For Self-Refine**: Paste the actual draft to improve, which dimensions the critique should cover (clarity, completeness, tone), what would make this output wrong or unusable?
+**For CAI Critique-Revise**: Paste the actual output to be critiqued, the specific standard it must satisfy stated precisely enough to be checkable, what would make this output wrong or unusable?
+**For Devil's Advocate**: The position, plan, or decision to attack, paste the proposal or memo that sets it out if you have one, which dimensions the attack should cover?
+**For Pre-Mortem**: The project or decision being analyzed with its team, timeline, and goals, paste the plan or proposal document if you have one, how far in the future the imagined failure should be dated?
+**For RCoT**: The question with every condition and constraint written out, paste the document those conditions come from if any, any implicit requirement not yet written into the question (units, deadlines, exclusions, edge cases) that a correct answer must still satisfy?
+**For Chain-of-Verification**: Paste the draft answer to fact-check if you have one, or the factual question to answer carefully, which specific claims are most at risk of being wrong, what a correct final answer must not get wrong?
+**For RPEF**: Paste the actual output sample to reverse-engineer, paste the input that produced it or confirm it is output-only, which details are one-off specifics that should become [PLACEHOLDER] variables?
+**For Reverse Role**: What you want to achieve in one or two sentences, the domain of expertise to consult, questions one at a time or all at once, should it then do the task or synthesize a structured prompt for you to approve?
+
+Every set above asks for the user's own material, because a framework that operates on an
+artifact and never asks for it will invent one. Three frameworks are deliberately exempt:
+**ReAct** (its material arrives as live tool output, not pasted text), **Reverse Role** (it
+elicits everything through the interview and its template has no material slot), and
+**RISE-IX** (its samples land in the EXAMPLES slot, which its own question already covers).
+Do not add a material question to those three.
 
 ### 5. Apply Framework
 
 Using gathered information:
 1. Apply the appropriate framework structure from your knowledge of the framework
 2. Map user's information to framework components
-3. Fill missing elements with reasonable defaults
+3. Fill missing elements with reasonable defaults — **with two exceptions, below**
 4. Structure according to framework format
+5. **Decide whether worked examples would materially improve the output**; if so, layer in few-shot examples as described in Composable Techniques above — this applies to any framework, not only the two with a built-in examples slot. Reach for it especially on classification, extraction, strict-format, and style-matching tasks, and only when the user or their material supplies real examples.
+
+**Never default a fact about the user's world.** Their business, metrics, history, policies, staff, customers, data, or constraints are things only they know. A plausible-sounding default here is a fabrication the user may not notice before sending — asserting "our first price increase in three years" in an email to paying customers, or inventing a phone number in a published review reply. Where such a slot is unanswered, emit a visible `[you fill this in: <what is needed>]` placeholder and list every placeholder in your analysis section.
+
+**Never soften or drop a prohibition.** If the user said something must not happen, it must survive into the emitted prompt as an explicit "Do not…" or "Never…" instruction. It cannot rely on a section header to carry the negation, because headers are stripped at emission (see step 6).
 
 ### 6. Present Improvements
 
-Show improved prompt with:
-- Clear before/after comparison
-- Explanation of changes made
+Structure your output in this exact order:
+
+**A. Analysis section** (comes first):
+- Framework selected and why
+- Changes made and reasoning
 - Framework components applied
-- Reasoning for improvements
+
+**B. Usage instructions** (transition block, immediately before the prompt):
+
+> **Your revised prompt is ready.**
+> - **New chat**: Copy the prompt below and paste it as your first message in a new conversation.
+> - **Same chat**: Tell the assistant: *"Use the revised prompt you just provided as a new instruction and execute it."*
+
+**C. The revised prompt** (comes last, in a fenced code block):
+- Present as a clean, flat-text block inside triple backticks
+- **No framework section headers** (no "BEFORE:", "BRIDGE:", "CONTEXT:", etc.) — these are scaffolding, not part of the deliverable
+- **No indentation** beyond what the prompt itself genuinely requires
+- **No markdown formatting** inside the block unless the prompt explicitly needs it (e.g., it asks for tables)
+- The user must be able to copy the entire block contents and paste it verbatim with zero editing — the one exception is `[...]` placeholders for material or facts only the user can supply (see step 5). Keep these to a minimum, make each self-explanatory, and name them in the analysis section so the user knows exactly what to fill in before sending.
+- **Nothing after the code block** — the revised prompt must be the absolute last element in the response. No trailing suggestions, tips, or follow-up text after the closing backticks.
 
 ### 7. Iterate
 
 - Confirm improvements align with intent
 - Refine based on feedback
-- Switch or combine frameworks if needed
+- Switch or combine frameworks if needed (see **Combining Frameworks** above)
 - Continue until satisfactory
 
 ## Key Principles
@@ -214,24 +285,24 @@ Frameworks add structure — but structure has overhead. Skip them when:
 **Improved Prompt** (BAB):
 
 ```
-BEFORE (current state):
 [Paste the current job posting here]
-This posting suffers from: corporate-speak, passive voice, overly formal tone,
-and generic language that doesn't reflect actual team culture.
 
-AFTER (desired state):
-A job posting that sounds like it was written by engineers, for engineers.
-Early-career developers should read it and think "I want to work there."
-It should feel honest, direct, and human — not like legal boilerplate.
+The job posting above suffers from corporate-speak, passive voice, overly formal tone, and generic language that doesn't reflect actual team culture.
 
-BRIDGE (transformation rules):
-1. Replace all passive constructions with active voice
-2. Convert corporate jargon to plain English (e.g., "leverage" → "use")
-3. Add one specific, concrete detail about the team/culture per section
-4. Keep all technical requirements and must-haves verbatim
-5. Target reading level: conversational, not academic
-6. Length: same or shorter than original — cut fluff, don't add it
+The rewritten version should sound like it was written by engineers, for engineers. Early-career developers should read it and think "I want to work there." It should feel honest, direct, and human — not like legal boilerplate.
+
+Follow these rules:
+- Replace all passive constructions with active voice.
+- Convert corporate jargon to plain English (e.g., "leverage" → "use").
+- Add one specific, concrete detail about the team or culture per section.
+- Keep all technical requirements and must-haves verbatim — do not change these.
+- Target reading level: conversational, not academic.
+- Length: same or shorter than the original. Cut fluff, don't add it.
+
+Now rewrite the job posting above.
 ```
+
+Note that the emitted prompt carries no `BEFORE:` / `AFTER:` / `BRIDGE:` headers. The BAB structure shaped what the prompt says; it is not part of what the user receives.
 
 ## Usage Notes
 
